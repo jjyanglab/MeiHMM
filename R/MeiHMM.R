@@ -3,15 +3,16 @@
 #' MeiHMM segment chromosome 21 into blocks of two or three haplotypes
 #' @param snp.file Path to the input file
 #' @param ancestry The ancestry groups, can be a list in c("eur", "amr", "eas", "sas", "afr"). Use "tot" to ignore ancestry.
+#' @param rare_threshold threshold to define rare allele. Default value is 0.003.
+#' @param oe_threshold threshold to define rare hypothetical haplotypes. Default value is 0.1.
+#' @param gap this value specify the range of VAF that is defined as one-copy allele: 0.13 to (1/3 + gap), or two-copy allele: (2/3 - gap) to 0.87.
 #' @return A list containing: segmentation, the segmentation results; positions, position of markers, af.doubled.allele, population allele frequency of two-copy alleles; oe.score, O/E ratio of hypothetical haplotypes
 #' @export
-MeiHMM <- function(snp.file, ancestry = c("tot")) {
+MeiHMM <- function(snp.file, ancestry = c("tot"), rare_threshold = 0.003, oe_threshold = 0.1, gap = 0.07) {
 
-	snp.info <- read.table(snp.file, sep ="\t")	
+	snp.info <- read.table(snp.file, sep ="\t", header = TRUE)	
 	pos <- as.numeric(snp.info[,2])
 	
-	xmin <- min(pos)
-	xmax <- max(pos)
 	
 	vaf <- as.numeric(snp.info[,6]) / (snp.info[,5] + snp.info[,6])
 	
@@ -45,11 +46,11 @@ MeiHMM <- function(snp.file, ancestry = c("tot")) {
 	
 
 	# with ALT:REF:REF configuration
-	ARR.msk <- snp.info[, "vaf"] > (1/3 - 0.2) & snp.info[, "vaf"] < (1/3 + gapping)
+	ARR.msk <- snp.info[, "vaf"] > (1/3 - 0.2) & snp.info[, "vaf"] < (1/3 + gap)
 	doubled.allele.af[ARR.msk] <- (1-population.afs)[ARR.msk]
 	# with ALT:ALT:REF configuration
 	alternative.allele.dose[ARR.msk] <- 1
-	AAR.msk <- snp.info[, "vaf"] > (2/3 - gapping) & snp.info[, "vaf"] < (2/3 + 0.2)
+	AAR.msk <- snp.info[, "vaf"] > (2/3 - gap) & snp.info[, "vaf"] < (2/3 + 0.2)
 	doubled.allele.af[AAR.msk] <- population.afs[AAR.msk]
 	alternative.allele.dose[AAR.msk] <- 2
 	# low coverage positions
@@ -154,7 +155,7 @@ MeiHMM <- function(snp.file, ancestry = c("tot")) {
 	observations <- rep("Others", nrow(snp.info.to.use))
 	names(observations) <- as.character(snp.info.to.use[, "position"])
 	observations[doubled.allele < rare_threshold] <- "Type1SNP"
-	observations[rownames(observed.haplotype.prop)[oe.score < 0.1]] <- "Type2SNP"
+	observations[rownames(observed.haplotype.prop)[oe.score < oe_threshold]] <- "Type2SNP"
 	
 	### HMM
 	states <- c("2H", "3H")
@@ -173,8 +174,11 @@ MeiHMM <- function(snp.file, ancestry = c("tot")) {
 	names(oe.score.allpositions) <- as.character(snp.info.to.use[, "position"])
 	oe.score.allpositions[rownames(observed.haplotype.prop)] <- oe.score
 	
-	return(list(segmentation = segmentation, positions = snp.info.to.use[, "position"], af.doubled.allele = doubled.allele,  oe.score = oe.score.allpositions))	
+	return(list(segmentation = segmentation, positions = snp.info.to.use[, "position"], af.doubled.allele = doubled.allele,  oe.score = oe.score.allpositions, rare_threshold = rare_threshold, oe_threshold = oe_threshold))	
+	
 }
+
+
 
 
 
@@ -193,7 +197,7 @@ plotMeiHMM <- function(MeiHMM.results) {
 	
 	plot(MeiHMM.results$positions, MeiHMM.results$af.doubled.allele, 
 			log="y", #xlab = "chr21 position (million)", 
-			ylab = "AF of doubled allele", xlim = c(xmin, xmax), ylim = c(1e-5, 1), pch=16, col = "grey20", cex = 0.5, axes = FALSE)
+			ylab = "AF of doubled allele", xlim = c(0, xmax), ylim = c(1e-5, 1), pch=16, col = "grey20", cex = 0.5, axes = FALSE)
 	#axis(1, at = (c(12:46)) * 1e6, labels = 12:46, las = 2)
 	axis(2, at = c(1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1), labels = c("1e-5", "1e-4", "1e-3", "1e-2", "1e-1", 1), las = 2)
 	box()
@@ -208,18 +212,22 @@ plotMeiHMM <- function(MeiHMM.results) {
 	par(xpd = TRUE)
 	for (i in 1:(length(changing.positions)/2)) {
 		rect(changing.positions[2*i -1], 2, changing.positions[2*i], 2*5, col =  c("deepskyblue", "gold")[1+(changing.states[2*i] == "2H")], border = NA)
+		text((changing.positions[2*i -1] + changing.positions[2*i])/2, 4.5, changing.states[2*i])
 	}
-	
+	lines(c(xmin - 1e6, xmax + 1e6), c(MeiHMM.results$rare_threshold, MeiHMM.results$rare_threshold), lty = 2, col = 2)
 	text(MeiHMM.results$positions[1]-1e6, 4, "#haplotype by HMM", adj = 1)
 	
 	par(mar = c(4.16,4.16,1,1), xpd=FALSE)
 	
-	plot(MeiHMM.results$positions, MeiHMM.results$oe.score, 
+	oe.score <- MeiHMM.results$oe.score
+	oe.score[oe.score == 0] <- 1e-4
+	
+	plot(MeiHMM.results$positions, oe.score, 
 			log="y", xlab = "chr21 position (million)", 
-			ylab = "score of hypothetical haplotype", xlim = c(xmin, xmax), ylim = c(1e-4, 5), pch=16, col = "grey20", cex = 0.5, axes = FALSE)
+			ylab = "score of hypothetical haplotype", xlim = c(0, xmax), ylim = c(1e-4, 5), pch=16, col = "grey20", cex = 0.5, axes = FALSE)
 	axis(1, at = (c(12:46)) * 1e6, labels = 12:46, las = 2)
 	axis(2, at = c(1e-4, 1e-3, 1e-2, 1e-1, 1), labels = c("0", "0.001", "0.01", "0.1", "1"), las = 2)
-	lines(c(-1, 1e8), c(0.1, 0.1), lty = 2, col = 2)
+	lines(c(xmin - 1e6, xmax + 1e6), c(MeiHMM.results$oe_threshold, MeiHMM.results$oe_threshold), lty = 2, col = 2)
 	box()
 	for (k in 12:46) {
 		lines(c(1e6* (k + 0.5), 1e6* (k + 0.5)), c(1e-10, 100), lty = 2, col = adjustcolor("grey60", 0.8), lwd = 0.5)
