@@ -1,11 +1,10 @@
 Package: MeiHMM
-Title: Missegragation 
+Title: Missegragation Error Identification through HMM 
 Version: 0.1.0 
 Authors@R: 
     person("Zhenhua", "Li", , "Zhenhua.Li@stjude.org", role = c("aut", "cre"))
 Description: MeiHMM segments trisomic chromosome 21 into blocks of two or three haplotypes and infer the stage of nondisjunction and crossover event
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2

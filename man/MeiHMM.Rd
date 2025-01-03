@@ -4,12 +4,24 @@
 \alias{MeiHMM}
 \title{MeiHMM function}
 \usage{
-MeiHMM(snp.file, ancestry = c("tot"))
+MeiHMM(
+  snp.file,
+  ancestry = c("tot"),
+  rare_threshold = 0.003,
+  oe_threshold = 0.1,
+  gap = 0.07
+)
 }
 \arguments{
 \item{snp.file}{Path to the input file}
 
 \item{ancestry}{The ancestry groups, can be a list in c("eur", "amr", "eas", "sas", "afr"). Use "tot" to ignore ancestry.}
+
+\item{rare_threshold}{threshold to define rare allele. Default value is 0.003.}
+
+\item{oe_threshold}{threshold to define rare hypothetical haplotypes. Default value is 0.1.}
+
+\item{gap}{this value specify the range of VAF that is defined as one-copy allele: 0.13 to (1/3 + gap), or two-copy allele: (2/3 - gap) to 0.87.}
 }
 \value{
 A list containing: segmentation, the segmentation results; positions, position of markers, af.doubled.allele, population allele frequency of two-copy alleles; oe.score, O/E ratio of hypothetical haplotypes
