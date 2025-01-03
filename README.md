@@ -14,6 +14,8 @@ When running MeiHMM for the first time, you need to download the reference files
 
 	download.file("https://github.com/jjyanglab/MeiHMM/releases/download/0.1.0/chr21.haplotypes.1000genomes.rda", destfile = "chr21.haplotypes.1000genomes.rda")
 	download.file("https://github.com/jjyanglab/MeiHMM/releases/download/0.1.0/combined.af.data.rda", destfile = "combined.af.data.rda")
+	load("chr21.haplotypes.1000genomes.rda")
+	load("combined.af.data.rda")
 
 To run a toy example:
 
